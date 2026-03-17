@@ -46,7 +46,7 @@ static JSValue athena_sound_stream_load(JSContext *ctx, JSValue this_val, int ar
 	const char* path = JS_ToCString(ctx, argv[0]);
 
 	snd->sound = sound_load(path);
-
+	JS_FreeCString(ctx, path)
     JS_SetOpaque(obj, snd);
     return obj;
 
@@ -158,9 +158,8 @@ static void athena_sound_sfx_dtor(JSRuntime *rt, JSValue val) {
 }
 
 static JSValue athena_sound_sfx_load(JSContext *ctx, JSValue this_val, int argc, JSValueConst *argv){
-	JSSoundEffect* snd;
+	JSSoundEffect* snd = NULL;
     JSValue obj = JS_UNDEFINED;
-    JSValue proto;
 
     obj = JS_NewObjectClass(ctx, js_sound_sfx_class_id);
 	if (JS_IsException(obj))
@@ -172,7 +171,7 @@ static JSValue athena_sound_sfx_load(JSContext *ctx, JSValue this_val, int argc,
 	const char* path = JS_ToCString(ctx, argv[0]);
 
 	snd->sound = sound_sfx_load(path);
-
+	JS_FreeCString(ctx, path);
     JS_SetOpaque(obj, snd);
     return obj;
 
