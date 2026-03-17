@@ -28,7 +28,7 @@ static void athena_sound_stream_dtor(JSRuntime *rt, JSValue val) {
 		return;
 
 	sound_free(snd->sound);
-
+	js_free_rt(rt, snd);
 	JS_SetOpaque(val, NULL);
 }
 
@@ -46,7 +46,7 @@ static JSValue athena_sound_stream_load(JSContext *ctx, JSValue this_val, int ar
 	const char* path = JS_ToCString(ctx, argv[0]);
 
 	snd->sound = sound_load(path);
-	JS_FreeCString(ctx, path)
+	JS_FreeCString(ctx, path);
     JS_SetOpaque(obj, snd);
     return obj;
 
@@ -111,7 +111,6 @@ static JSValue athena_get_position(JSContext *ctx, JSValueConst this_val){
 
 static JSValue athena_set_loop(JSContext *ctx, JSValueConst this_val, JSValue val){
     JSSoundStream* snd = JS_GetOpaque2(ctx, this_val, js_sound_stream_class_id);
-    uint32_t position;
 
     snd->sound->loop = JS_ToBool(ctx, val);
     return JS_UNDEFINED;
