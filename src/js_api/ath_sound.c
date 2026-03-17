@@ -33,9 +33,8 @@ static void athena_sound_stream_dtor(JSRuntime *rt, JSValue val) {
 }
 
 static JSValue athena_sound_stream_load(JSContext *ctx, JSValue this_val, int argc, JSValueConst *argv){
-	JSSoundStream* snd;
+	JSSoundStream* snd = NULL;
     JSValue obj = JS_UNDEFINED;
-    JSValue proto;
 
     obj = JS_NewObjectClass(ctx, js_sound_stream_class_id);
 	if (JS_IsException(obj))
