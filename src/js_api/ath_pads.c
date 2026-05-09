@@ -651,9 +651,16 @@ static const JSCFunctionListEntry js_pad_proto_funcs[] = {
 	JS_CGETSET_MAGIC_DEF("old_ry",   js_pad_get_prop, js_pad_set_prop, 9),
 };
 
+static void js_pad_finalizer(JSRuntime *rt, JSValue val) {
+    JSPads *pad = JS_GetOpaque(val, js_pads_class_id);
+    if (pad) {
+        js_free_rt(rt, pad);
+    }
+}
+
 static JSClassDef js_pads_class = {
     "Pad",
-    //.finalizer = js_std_file_finalizer,
+    .finalizer = js_pad_finalizer,
 };
 
 static int js_pads_init(JSContext *ctx, JSModuleDef *m)
