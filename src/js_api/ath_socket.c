@@ -14,8 +14,12 @@ static JSClassID js_socket_class_id;
 
 static JSValue athena_socket_close(JSContext *ctx, JSValue this_val, int argc, JSValueConst *argv){
     JSSocketData* s = JS_GetOpaque2(ctx, this_val, js_socket_class_id);
+	if (!s)
+        return JS_UNDEFINED;
+	
 	lwip_close(s->id);
-
+    js_free(ctx, s);
+    JS_SetOpaque(this_val, NULL);
 	return JS_UNDEFINED;
 }
 
@@ -47,13 +51,18 @@ static JSValue athena_socket_connect(JSContext *ctx, JSValue this_val, int argc,
 
     struct sockaddr_in addr;
     int32_t sin_port;
+	const char* ip_str;
 
     JSSocketData* s = JS_GetOpaque2(ctx, this_val, js_socket_class_id);
+
+	ip_str = JS_ToCString(ctx, argv[0]);
 
     memset(&addr, 0, sizeof(addr));
     addr.sin_len = sizeof(addr);
     addr.sin_family = s->sin_family;
-    addr.sin_addr.s_addr = ipaddr_addr(JS_ToCString(ctx, argv[0]));
+    addr.sin_addr.s_addr = ipaddr_addr(ip_str);
+
+	JS_FreeCString(ctx, ip_str);
 
     JS_ToInt32(ctx, &sin_port, argv[1]);
     addr.sin_port = htons(sin_port);
@@ -68,15 +77,20 @@ static JSValue athena_socket_bind(JSContext *ctx, JSValue this_val, int argc, JS
 
     struct sockaddr_in addr;
     int32_t sin_port;
+	const char* ip_str;
 
     JSSocketData* s = JS_GetOpaque2(ctx, this_val, js_socket_class_id);
+	ip_str = JS_ToCString(ctx, argv[0]);
 
     memset(&addr, 0, sizeof(addr));
     addr.sin_len = sizeof(addr);
     addr.sin_family = s->sin_family;
-    addr.sin_addr.s_addr = ipaddr_addr(JS_ToCString(ctx, argv[0]));
+    addr.sin_addr.s_addr = ipaddr_addr(ip_str);
+	
     JS_ToInt32(ctx, &sin_port, argv[1]);
     addr.sin_port = htons(sin_port);
+
+	JS_FreeCString(ctx, ip_str);
 
     int ret = bind(s->id, (struct sockaddr*)&addr, sizeof(addr));
 
@@ -93,6 +107,8 @@ static JSValue athena_socket_send(JSContext *ctx, JSValue this_val, int argc, JS
 
     int ret = send(s->id, buf, len, MSG_DONTWAIT);
 
+	JS_FreeCString(ctx, buf);
+	
     return JS_NewInt32(ctx, ret);
 }
 
@@ -107,7 +123,7 @@ static JSValue athena_socket_listen(JSContext *ctx, JSValue this_val, int argc, 
 }
 
 static JSValue athena_socket_recv(JSContext *ctx, JSValue this_val, int argc, JSValueConst *argv) {
-	if (argc != 1) return JS_ThrowSyntaxError(ctx, "Socket.recv takes a single argument");
+    if (argc != 1) return JS_ThrowSyntaxError(ctx, "Socket.recv takes a single argument");
 
     JSSocketData* s = JS_GetOpaque2(ctx, this_val, js_socket_class_id);
 
@@ -116,13 +132,32 @@ static JSValue athena_socket_recv(JSContext *ctx, JSValue this_val, int argc, JS
 
     void* buf = js_mallocz(ctx, len);
 
-    recv(s->id, buf, len, MSG_PEEK);
-    return JS_NewStringLen(ctx, buf, len);
+    int received = recv(s->id, buf, len, MSG_DONTWAIT);
+
+    JSValue result;
+    if (received > 0) {
+        result = JS_NewStringLen(ctx, buf, received);
+    } else {
+        result = JS_NewString(ctx, "");
+    }
+
+    js_free(ctx, buf);
+
+    return result;
+}
+
+static void js_socket_finalizer(JSRuntime *rt, JSValue val) {
+    JSSocketData *s = JS_GetOpaque(val, js_socket_class_id);
+    if (s) {
+        if (s->id >= 0)
+            lwip_close(s->id);
+        js_free_rt(rt, s);
+    }
 }
 
 static JSClassDef js_socket_class = {
     "Socket",
-    //.finalizer = js_s_finalizer,
+    .finalizer = js_socket_finalizer,
 }; 
 
 static const JSCFunctionListEntry js_socket_proto_funcs[] = {

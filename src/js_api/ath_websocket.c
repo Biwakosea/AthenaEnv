@@ -11,7 +11,8 @@ static JSValue athena_ws_get(JSContext *ctx, JSValueConst this_val, int magic)
     case 0: { // verifyTLS
         JSValue v = JS_GetPropertyStr(ctx, this_val, "_verifyTLS");
         if (JS_IsUndefined(v)) {
-            v = JS_NewBool(ctx, 1);
+           JS_FreeValue(ctx, v);
+		   return JS_NewBool(ctx, 1);
         }
         return v;
     }
@@ -59,6 +60,9 @@ static JSValue athena_ws_ctor(JSContext *ctx, JSValueConst new_target, int argc,
     }
 
     ath_ws_ctx_t *ws = ath_ws_connect(url, verify_tls);
+
+	JS_FreeCString(ctx, url);
+	
     if (!ws) {
         JS_FreeValue(ctx, obj);
         return JS_ThrowInternalError(ctx, "WebSocket native connect failed");
@@ -72,8 +76,8 @@ static void athena_ws_dtor(JSRuntime *rt, JSValue val)
 {
     void *opaque = JS_GetOpaque(val, js_ws_class_id);
     ath_ws_ctx_t *ws = (ath_ws_ctx_t*)opaque;
+	
     if (ws) ath_ws_close(ws);
-    printf("Freeing WebSocket\n");
 }
 
 static uint8_t ws_buf[16000];
@@ -104,10 +108,19 @@ static JSValue athena_ws_send(JSContext *ctx, JSValue this_val, int argc, JSValu
     if (ath_ws_send((ath_ws_ctx_t*)opaque, buf, size, 1) != 0) {
         return JS_ThrowInternalError(ctx, "WebSocket native send not implemented");
     }
-    sent = size;
 
-    return JS_NewUint32(ctx, sent);
-	
+    return JS_NewUint32(ctx, size);
+}
+
+static JSValue athena_ws_close(JSContext *ctx, JSValue this_val, int argc, JSValueConst *argv)
+{
+    ath_ws_ctx_t *ws = (ath_ws_ctx_t*)JS_GetOpaque2(ctx, this_val, js_ws_class_id);
+    if (!ws)
+        return JS_UNDEFINED;
+
+    ath_ws_close(ws);
+    JS_SetOpaque(this_val, NULL);
+    return JS_UNDEFINED;
 }
 
 static JSClassDef js_ws_class = {
@@ -119,6 +132,7 @@ static const JSCFunctionListEntry athena_ws_funcs[] = {
     JS_CGETSET_MAGIC_DEF("verifyTLS", athena_ws_get, athena_ws_set, 0),
     JS_CFUNC_DEF("send", 1, athena_ws_send),
     JS_CFUNC_DEF("recv", 0, athena_ws_recv),
+	JS_CFUNC_DEF("close", 0, athena_ws_close),
 };
 
 static int ws_init(JSContext *ctx, JSModuleDef *m) {
