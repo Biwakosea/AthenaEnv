@@ -1638,10 +1638,23 @@ static JSValue athena_render_batch_size(JSContext *ctx, JSValueConst this_val, i
     return JS_NewUint32(ctx, jb->batch->count);
 }
 
+static JSValue athena_render_batch_free(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    JSRenderBatch *rb = JS_GetOpaque2(ctx, this_val, js_render_batch_class_id);
+
+    if (!rb || !rb->batch)
+        return JS_UNDEFINED;
+
+    athena_batch_destroy(rb->batch);
+    rb->batch = NULL;
+
+    return JS_UNDEFINED;
+}
+
 static const JSCFunctionListEntry js_render_batch_proto_funcs[] = {
 	JS_CFUNC_DEF("add", 1, athena_render_batch_add),
 	JS_CFUNC_DEF("clear", 0, athena_render_batch_clear),
 	JS_CFUNC_DEF("render", 0, athena_render_batch_render),
+	JS_CFUNC_DEF("free", 0, athena_render_batch_free),
 	JS_CGETSET_MAGIC_DEF("size", athena_render_batch_size, NULL, 0),
 };
 
@@ -1884,12 +1897,25 @@ static JSValue athena_scene_node_update(JSContext *ctx, JSValueConst this_val, i
     return JS_UNDEFINED;
 }
 
+static JSValue athena_scene_node_free(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    JSSceneNode *node = JS_GetOpaque2(ctx, this_val, js_scene_node_class_id);
+
+    if (!node || !node->node)
+        return JS_UNDEFINED;
+
+    athena_scene_node_destroy(node->node);
+    node->node = NULL;
+
+    return JS_UNDEFINED;
+}
+
 static const JSCFunctionListEntry js_scene_node_proto_funcs[] = {
 	JS_CFUNC_DEF("addChild", 1, js_scene_node_add_child),
 	JS_CFUNC_DEF("removeChild", 1, js_scene_node_remove_child),
 	JS_CFUNC_DEF("attach", 1, js_scene_node_attach),
 	JS_CFUNC_DEF("detach", 1, js_scene_node_detach),
 	JS_CFUNC_DEF("update", 0, athena_scene_node_update),
+	JS_CFUNC_DEF("free", 0, athena_scene_node_free),
 	JS_CGETSET_MAGIC_DEF("position", scene_node_prop_get, scene_node_prop_set, 0),
 	JS_CGETSET_MAGIC_DEF("rotation", scene_node_prop_get, scene_node_prop_set, 1),
 	JS_CGETSET_MAGIC_DEF("scale", scene_node_prop_get, scene_node_prop_set, 2),
